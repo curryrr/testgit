@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+# ******************************************************************************
+# 程序名称:     m_mg_center_home_page
+# 功能描述:     游戏中心首页模块打中间表
+# 输入参数:     
+# 目标表名:
+# 数据源表:
+# 创建人名:     v_kyingli
+# 创建日期:     2018-1-8
+# 版本说明:     v1.0
+# 公司名称:     tencent
+# 修改人名:
+# 修改日期:
+# 修改原因:
+# ******************************************************************************
+
+import Database
+import MiddleTable
+# main entry
+def TDW_PL(tdw, argv=[]):
+    dateForm = argv[0]
+    if dateForm == '' :
+        tdw.WriteLog("The argument can not be null")
+        exit()
+        tdw.WriteLog("DateForm : " + dateForm)
+        
+        db = Database
+        db._debug = 0
+        db.setDatabase(tdw, "isd_clm")
+        MiddleTable.createMiddleTable(db, tdw, "m_mg_center_behavior_h")
+        
+        module_id = "58924"
+    
+    #游戏中心首页模块打中间表
+    db.initPriSubPartitions(tdw, "m_mg_center_behavior_h", dateForm, [module_id])
+    db.execute(tdw, """
+    insert overwrite table m_mg_center_home_page partition (p_%(dateForm)s, sp_%(module_id)s)
+    select imp_date as ftime,
+           null as uid,
+           null as imei,
+           uin as qq,
+           null as wxid,
+           null as open_id,
+           null as phone_number,
+           itimestamp as oper_time,
+           null as test_id,
+           ext6 as rule_id,
+           null as trace_id,
+           case when oper_id in (203111,203112,203113) then gameappid
+                when oper_id in (203109,203110,203114) then ext2
+           end as item_id,
+           case when oper_id in (203111,203112,203113) then ext2
+                when oper_id in (203109,203110,203114) then null
+           end as sub_item_id,
+           case when oper_id in (203111,203112,203113) then 1
+                when oper_id in (203109,203110,203114) then 2
+           end as item_type,
+           case when oper_id in (203111,203109) then 101
+                when oper_id in (203110,203112) then 102
+                when oper_id in (203113) then 103
+           end as action_id,
+           null as action_value,
+           '121' as busi_id,
+           oper_module as page_id,
+           %(module_id)s as module_id,
+           null as sub_module_id,
+           domain as platform,
+           device_type as device,
+           null as position_id,
+           net_type as network_type,
+           gamecenter_ver as app_version,
+           null as report_source
+    from u_isd_club::r_d_mg_dc00087_dc00704_h
+           where substr(imp_date,1,10)=%(dateForm)s
+           and oper_id in (203111,
+                           203112,
+                           203113,
+                           203109,
+                           203110,
+                           203114)
+            """ %{"dateForm":dateForm})
